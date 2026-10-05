@@ -138,14 +138,45 @@ docker buildx rm b2 && rm -rf ./bk
 ## Status
 
 Open, help wanted. Design accepted upstream (pluggable cache-mount storage backend),
-nobody working on it.
+nobody working on it. Maintainers still point users to buildkit-cache-dance.
+
+## Related issues
+
+- [moby/buildkit#6900](https://github.com/moby/buildkit/issues/6900): recent request to
+  extract/seed cache mounts, closed as a duplicate of #1512.
+- [docker/buildx#3925](https://github.com/docker/buildx/issues/3925): same request, closed
+  and redirected to BuildKit (became #6900).
+- moby/buildkit#1474: earlier closed duplicate.
+
+## Docs contribution
+
+**PR:** [moby/buildkit#7246](https://github.com/moby/buildkit/pull/7246): adds a note to the `RUN --mount=type=cache` section of
+`frontend/dockerfile/docs/reference.md` (published as the Dockerfile reference on
+docs.docker.com).
+
+The note states that cache mounts live in the builder's local storage, are not
+included in exported build cache (`--cache-to`) or restored by `--cache-from`, and start
+empty on new builders (e.g. hosted CI). Before this, only the GitHub Actions cache page
+mentioned it.
+
+Possible follow-up: a similar note on the Cache storage backends page (`docker/docs`).
+
+## Evidence for later (performance case)
+
+From #6900 (single reporter, unverified):
+
+- Rust microservices: cache mounts turn a 10–14 min build per service into ~30s locally.
+- With buildkit-cache-dance on CI, the extraction step alone takes ~8 min, longer than
+  the build itself; it re-extracts and re-uploads the full cache every run.
 
 ## Current workaround
 
-reproducible-containers/buildkit-cache-dance (slow on large caches)
+reproducible-containers/buildkit-cache-dance (slow on large caches, evidence above)
 
-## Fix options (undecided)
+## Fix options
 
-- **A.** Implement upstream design (Go, buildkit + buildx)
+- **A.** Implement upstream design (Go, buildkit + buildx) (preferred)
 - **B.** Improve cache-dance with incremental extraction (TS)
 - **C.** CI-agnostic Go CLI for cache mount export/import
+  
+Open design question for A: file ownership/permissions of cache contents written to a host location (root-owned files vs. the CI user; tools like Go and apt create read-only or private files).
